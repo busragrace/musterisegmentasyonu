@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore")
 
 df = pd.read_csv("Mall_Customers.csv")
 
-print("Veri Setinin Ýlk 5 Örneði: \n", df.head(5))
-print("Veri Setinin Þekli: \n", df.shape)
+print("Veri Setinin Ãlk 5 Ã–rneÃ°i: \n", df.head(5))
+print("Veri Setinin Ãžekli: \n", df.shape)
 
 df.rename(columns={"Genre":"Gender"}, inplace=True)
 
@@ -144,7 +144,7 @@ df_scaled_fit.columns = ["Age","Annual Income (k$)","Spending Score (1-100)"]
 df_scaled_fit.head()
 var_list = df_scaled_fit[["Annual Income (k$)","Spending Score (1-100)"]]
 
-# Model Eðitimi
+# Model EÃ°itimi
 ssd = []
 
 for num_clusters in range(1, 11):
@@ -273,7 +273,7 @@ IQR = Q3 - Q1
 ust_sinir = Q3 + 1.5 * IQR
 df.loc[df['Annual Income (k$)'] > ust_sinir, 'Annual Income (k$)'] = ust_sinir
 
-print("--- Veri Yüklendi, Gender Düzeltildi, Aykýrý Deðerler Temizlendi ---")
+print("--- Veri YÃ¼klendi, Gender DÃ¼zeltildi, AykÃ½rÃ½ DeÃ°erler Temizlendi ---")
 
 
 # ==================================================================
@@ -282,11 +282,11 @@ print("--- Veri Yüklendi, Gender Düzeltildi, Aykýrý Deðerler Temizlendi ---")
 # NOT: Bu bolumdeki tum plt.title metinleri encoding hatasi vermemek icin duzeltilmistir.
 
 
-# Korelasyon Isý Haritasý
+# Korelasyon IsÃ½ HaritasÃ½
 df_corr = df.drop(columns=['CustomerID'], errors='ignore')
 plt.figure(figsize=(10,6))
 sns.heatmap(df_corr.corr(numeric_only=True), annot=True, cmap='Blues', fmt=".2f", linewidths=0.5, linecolor='white')
-plt.title('Deðiþkenler Arasý Korelasyon Isý Haritasý', fontsize=16, color='navy')
+plt.title('DeÃ°iÃ¾kenler ArasÃ½ Korelasyon IsÃ½ HaritasÃ½', fontsize=16, color='navy')
 plt.tight_layout()
 plt.show()
 
@@ -306,7 +306,7 @@ df_scaled_fit = scaler.fit_transform(df_scaled)
 # Kumeleme icin sadece Gelir ve Skor kullanilacak
 X_cluster = pd.DataFrame(df_scaled_fit, columns=["Age","Annual Income (k$)","Spending Score (1-100)"])[["Annual Income (k$)","Spending Score (1-100)"]]
 
-print("--- Veri Ölçeklendirildi (Scaling) ---")
+print("--- Veri Ã–lÃ§eklendirildi (Scaling) ---")
 
 
 # Elbow curve sonucuna gore K=5 secilir
@@ -353,6 +353,29 @@ else:
     skorlar_db['Affinity Prop.'] = 100.0
 
 
+# ===========================
+# AP SCATTER GRAFÄ°ÄžÄ°
+# ===========================
+
+# AP etiketlerini dataframe'e ekleyelim
+df["AP_Label"] = ap_labels
+plt.figure(figsize=(8, 5))
+sns.scatterplot(
+    data=df,
+    x="Annual Income (k$)",
+    y="Spending Score (1-100)",
+    hue="AP_Label",
+    palette="tab20",   # Ã§ok segment iÃ§in uygun palet
+    s=60
+)
+plt.title("Affinity Propagation Sonucu MÃ¼ÅŸteri Segmentleri")
+plt.xlabel("Annual Income (k$)")
+plt.ylabel("Spending Score (1-100)")
+plt.legend(title="AP Segment", bbox_to_anchor=(1.02, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
+
+
 # GORSEL KARSILASTIRMA GRAFIKLERI
 skorlar_sil_values = [skorlar_sil[m] for m in modeller_kume]
 skorlar_db_values = [skorlar_db[m] for m in modeller_kume]
@@ -362,7 +385,7 @@ skorlar_db_values = [skorlar_db[m] for m in modeller_kume]
 plt.figure(figsize=(14, 6))
 plt.subplot(1, 2, 1)
 sns.barplot(x=modeller_kume, y=skorlar_sil_values, palette='viridis')
-plt.title('Silhouette Skor Karþýlaþtýrmasý (Büyük olmasý daha iyi)')
+plt.title('Silhouette Skor KarÃ¾Ã½laÃ¾tÃ½rmasÃ½ (BÃ¼yÃ¼k olmasÃ½ daha iyi)')
 plt.ylabel('Silhouette Skoru')
 plt.tight_layout()
 
@@ -370,12 +393,12 @@ plt.tight_layout()
 # 2. DAVIES-BOULDIN SKORU (Kucuk Daha iyi)
 plt.subplot(1, 2, 2)
 sns.barplot(x=modeller_kume, y=skorlar_db_values, palette='plasma')
-plt.title('Davies-Bouldin Skor Karþýlaþtýrmasý (Küçük olmasý daha iyi)')
+plt.title('Davies-Bouldin Skor KarÃ¾Ã½laÃ¾tÃ½rmasÃ½ (KÃ¼Ã§Ã¼k olmasÃ½ daha iyi)')
 plt.ylabel('Davies-Bouldin Skoru')
 plt.savefig('Kumeleme_Iki_Metrik_Karsilastirma.png')
 plt.tight_layout()
 plt.show()
 
 print("\n*** TUM KUMELEME ALGORITMALARI KARSILASTIRILDI. ***")
-print(f"\nSilhouette Skorlarý: {skorlar_sil}")
-print(f"Davies-Bouldin Skorlarý: {skorlar_db} içermektedir.")
+print(f"\nSilhouette SkorlarÃ½: {skorlar_sil}")
+print(f"Davies-Bouldin SkorlarÃ½: {skorlar_db} iÃ§ermektedir.")

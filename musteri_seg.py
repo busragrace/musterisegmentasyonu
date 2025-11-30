@@ -1,4 +1,4 @@
-# -*- coding: windows-1254 -*-
+# -*- coding: utf-8 -*-
 
 # Import Libraries
 import numpy as np
@@ -260,145 +260,174 @@ print("=========================================================================
 
 
 # ==================================================================
-# 2. VERI YUKLEME VE ON ISLEME (EDA ONCESI TEMIZLIK)
+# 1. VERİ YÜKLEME VE UÇ DEĞER DÜZELTMESİ
 # ==================================================================
+df_raw = pd.read_csv(r"C:\Users\Lenovo\Desktop\Musteri_Segmentasyon\Mall_Customers.csv")
+df_raw.rename(columns={"Genre":"Gender"}, inplace=True)
+df_clean = df_raw.copy()
 
-# Sutun isimlerini duzeltme
-df.rename(columns={"Genre":"Gender"}, inplace=True)
-
-# Aykiri Deger Duzeltmesi (Annual Income uzerinden)
-Q1 = df['Annual Income (k$)'].quantile(0.25)
-Q3 = df['Annual Income (k$)'].quantile(0.75)
+# Uç değer (Outlier Capping) işlemi
+Q1 = df_clean['Annual Income (k$)'].quantile(0.25)
+Q3 = df_clean['Annual Income (k$)'].quantile(0.75)
 IQR = Q3 - Q1
 ust_sinir = Q3 + 1.5 * IQR
-df.loc[df['Annual Income (k$)'] > ust_sinir, 'Annual Income (k$)'] = ust_sinir
+df_clean.loc[df_clean['Annual Income (k$)'] > ust_sinir, 'Annual Income (k$)'] = ust_sinir
 
-print("--- Veri Yüklendi, Gender Düzeltildi, Aykýrý Deðerler Temizlendi ---")
-
-
-# ==================================================================
-# 3. VERI KESFI (EDA) VE GORSELLESTIRMELER (MEVCUT KODUNUZ)
-# ==================================================================
-# NOT: Bu bolumdeki tum plt.title metinleri encoding hatasi vermemek icin duzeltilmistir.
-
-
-# Korelasyon Isý Haritasý
-df_corr = df.drop(columns=['CustomerID'], errors='ignore')
-plt.figure(figsize=(10,6))
-sns.heatmap(df_corr.corr(numeric_only=True), annot=True, cmap='Blues', fmt=".2f", linewidths=0.5, linecolor='white')
-plt.title('Deðiþkenler Arasý Korelasyon Isý Haritasý', fontsize=16, color='navy')
-plt.tight_layout()
-plt.show()
-
-
-# (Yas Dagilimi, Gelir Dagilimi, Cinsiyet Sayimi vb. grafikler buraya dahildir)
-# ... Tum eski EDA grafik kodlariniz buradadir. ...
+print("--- Veri Yüklendi ve Uç Değer Düzeltmesi (df_clean) Tamamlandı. ---")
 
 # ==================================================================
-# 4. VERI HAZIRLIGI (OLCEKLENDIRME)
+# 2. VERİ ÖLÇEKLENDİRME VE KÜMELEME İÇİN HAZIRLIK
 # ==================================================================
-
-# Sadece sayisal ve kumeleme icin kullanilacak sutunlar (Gender disarida tutuldu)
-df_scaled = df[["Age","Annual Income (k$)","Spending Score (1-100)"]] 
+features = ["Annual Income (k$)","Spending Score (1-100)"]
 scaler = StandardScaler()
-df_scaled_fit = scaler.fit_transform(df_scaled)
 
-# Kumeleme icin sadece Gelir ve Skor kullanilacak
-X_cluster = pd.DataFrame(df_scaled_fit, columns=["Age","Annual Income (k$)","Spending Score (1-100)"])[["Annual Income (k$)","Spending Score (1-100)"]]
+# Ham ve Temiz Veri Ölçeklendirme
+X_raw = df_raw[features]
+X_raw_scaled_df = pd.DataFrame(scaler.fit_transform(X_raw), columns=features)
 
-print("--- Veri Ölçeklendirildi (Scaling) ---")
+X_clean = df_clean[features]
+X_clean_scaled = scaler.fit_transform(X_clean)
+X_cluster = pd.DataFrame(X_clean_scaled, columns=features) # Temiz veri kümeleme matrisi
 
+print("--- Veri Ölçeklendirme Tamamlandı. ---")
 
-# Elbow curve sonucuna gore K=5 secilir
-kmeans_final = KMeans(n_clusters=5, max_iter=50, random_state=42, n_init=10)
-df["Label"] = kmeans_final.fit_predict(X_cluster)
+# ==================================================================
+# 3. KÜMELEME MODELLERİNİ EĞİTME (Temiz Veri Üzerinden)
+# ==================================================================
+K = 5
+algorithms = {
+    'K-Means': KMeans(n_clusters=K, random_state=42, n_init=10),
+    'Hiyerarşik': AgglomerativeClustering(n_clusters=K, metric='euclidean', linkage='ward'),
+    'Affinity Prop.': AffinityPropagation(damping=0.9, random_state=42, max_iter=200, convergence_iter=15)
+}
 
-plt.title("5 Kumeye Ayrilmis Musteri Dagilimi")
-sns.scatterplot(data=df, x="Annual Income (k$)", y="Spending Score (1-100)", hue="Label", s=60)
+# Modelleri eğitme ve etiketleri df_clean'e ekleme
+df_clean["KMeans_Label"] = algorithms['K-Means'].fit_predict(X_cluster)
+df_clean["HC_Label"] = algorithms['Hiyerarşik'].fit_predict(X_cluster)
+df_clean["AP_Label"] = algorithms['Affinity Prop.'].fit_predict(X_cluster)
+
+print("--- Tüm Kümeleme Modelleri Eğitildi. ---")
+
+# ==================================================================
+# 4. GÖRSELLEŞTİRMELER (HER BİRİ AYRI SAYFADA)
+
+### 4.1. Korelasyon Matrisi 
+df_encoded = pd.get_dummies(df_clean, columns=['Gender'], drop_first=True)
+df_corr_final = df_encoded.drop(columns=['CustomerID', 'KMeans_Label', 'HC_Label', 'AP_Label'], errors='ignore')
+
+plt.figure(figsize=(9, 8))
+sns.heatmap(df_corr_final.corr(numeric_only=True), annot=True, cmap='Blues', fmt=".2f", linewidths=0.5, linecolor='white')
+plt.title('Temiz Veri Korelasyon Matrisi ', fontsize=16)
+plt.tight_layout()
+plt.show() 
+
+### 4.2. Hiyerarşik Kümeleme Dendrogramı 
+linked = linkage(X_cluster, method='ward', metric='euclidean')
+plt.figure(figsize=(15, 7))
+dendrogram(linked,
+           orientation='top',
+           distance_sort='descending',
+           show_leaf_counts=True,
+           color_threshold=linked[-5, 2] 
+          )
+plt.axhline(y=10.0, color='r', linestyle='--') 
+plt.title('Hiyerarşik Kümeleme Dendrogramı', fontsize=18)
+plt.ylabel('Mesafe (Distance)')
+plt.xlabel('Müşteriler (gruplandırılmış)', fontsize=12)
+plt.tight_layout()
+plt.show() 
+
+### 4.3. Küme Dağılım Grafikleri
+
+# K-Means Dağılım
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df_clean, x="Annual Income (k$)", y="Spending Score (1-100)", 
+                hue="KMeans_Label", s=60, palette="deep")
+plt.title("K-Means (K=5) Dağılımı", fontsize=18)
 plt.tight_layout()
 plt.show()
 
-
-# ==================================================================
-# 6. TUM KUMELEME ALGORITMALARININ IKI METRIKLE KARSILASTIRILMASI (3 ALGORITMA)
-# ==================================================================
-
-skorlar_sil = {} 
-skorlar_db = {}
-# Mean Shift'i kaldirdik
-modeller_kume = ['K-Means (K=5)', 'Hiyerarsik (K=5)', 'Affinity Prop.']
-
-# 1. K-MEANS (K=5)
-# KMeans skorlari, onceki kodda hesaplanmis olan 'kmeans_final' modelinden alinir.
-skorlar_sil['K-Means (K=5)'] = silhouette_score(X_cluster, kmeans_final.labels_)
-skorlar_db['K-Means (K=5)'] = davies_bouldin_score(X_cluster, kmeans_final.labels_)
-
-
-# 2. HIYERARSIK KUMELEME (K=5)
-hc_model = AgglomerativeClustering(n_clusters=5, metric='euclidean', linkage='ward')
-hc_labels = hc_model.fit_predict(X_cluster)
-skorlar_sil['Hiyerarsik (K=5)'] = silhouette_score(X_cluster, hc_labels)
-skorlar_db['Hiyerarsik (K=5)'] = davies_bouldin_score(X_cluster, hc_labels)
-
-
-# 3. AFFINITY PROPAGATION (K sayisini otomatik bulur)
-ap_model = AffinityPropagation(damping=0.9, random_state=42, max_iter=200, convergence_iter=15)
-ap_labels = ap_model.fit_predict(X_cluster)
-if len(np.unique(ap_labels)) > 1:
-    skorlar_sil['Affinity Prop.'] = silhouette_score(X_cluster, ap_labels)
-    skorlar_db['Affinity Prop.'] = davies_bouldin_score(X_cluster, ap_labels)
-else:
-    # Eger tek bir kume bulursa, skorlari sifir kabul et
-    skorlar_sil['Affinity Prop.'] = 0.0
-    skorlar_db['Affinity Prop.'] = 100.0
-
-
-# ===========================
-# AP SCATTER GRAFİĞİ
-# ===========================
-
-# AP etiketlerini dataframe'e ekleyelim
-df["AP_Label"] = ap_labels
-plt.figure(figsize=(8, 5))
-sns.scatterplot(
-    data=df,
-    x="Annual Income (k$)",
-    y="Spending Score (1-100)",
-    hue="AP_Label",
-    palette="tab20",   # çok segment için uygun palet
-    s=60
-)
-plt.title("Affinity Propagation Sonucu Müşteri Segmentleri")
-plt.xlabel("Annual Income (k$)")
-plt.ylabel("Spending Score (1-100)")
-plt.legend(title="AP Segment", bbox_to_anchor=(1.02, 1), loc="upper left")
+# Hiyerarşik Kümeleme Dağılım
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df_clean, x="Annual Income (k$)", y="Spending Score (1-100)", 
+                hue="HC_Label", s=60, palette="deep")
+plt.title("Hiyerarşik Kümeleme (K=5) Dağılımı", fontsize=18)
 plt.tight_layout()
 plt.show()
 
+# Affinity Propagation Dağılım
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df_clean, x="Annual Income (k$)", y="Spending Score (1-100)", 
+                hue="AP_Label", s=60, palette="tab20")
+plt.title(f"Affinity Propagation Dağılımı (K={len(df_clean['AP_Label'].unique())})", fontsize=18)
+plt.tight_layout()
+plt.show()
 
-# GORSEL KARSILASTIRMA GRAFIKLERI
-skorlar_sil_values = [skorlar_sil[m] for m in modeller_kume]
-skorlar_db_values = [skorlar_db[m] for m in modeller_kume]
+# 5. SKOR HESAPLAMA VE KIYASLAMA 
+
+# K-Means Ham Veri Skoru
+kmeans_raw_labels = algorithms['K-Means'].fit_predict(X_raw_scaled_df)
+raw_kmeans_scores = {
+    'Silhouette': silhouette_score(X_raw_scaled_df, kmeans_raw_labels),
+    'Davies-Bouldin': davies_bouldin_score(X_raw_scaled_df, kmeans_raw_labels)
+}
+
+# Temiz Veri Skorları
+clean_scores = {}
+algo_names = list(algorithms.keys())
+label_cols = ['KMeans_Label', 'HC_Label', 'AP_Label'] 
+
+for algo_name, label_col in zip(algo_names, label_cols):
+    labels = df_clean[label_col]
+    
+    if len(np.unique(labels)) > 1:
+        sil_score = silhouette_score(X_cluster, labels)
+        db_score = davies_bouldin_score(X_cluster, labels)
+    else:
+        sil_score = 0.0
+        db_score = 100.0
+
+    clean_scores[algo_name] = {'Silhouette': sil_score, 'Davies-Bouldin': db_score}
+
+print("\n--- Tüm Kümeleme Algoritmalarının Skorları Hesaplandı. ---")
 
 
-# 1. SILHOUETTE SKORU (Buyuk daha iyi)
+# 6. SONUÇ TABLOLARI VE KIYASLAMA GRAFİKLERİ
+# ==================================================================
+
+# Tablo 1: Temiz Veri Üzerinde Algoritma Kıyaslaması
+df_clean_summary = pd.DataFrame(clean_scores).T
+print("\n*** 1. TABLO: TEMİZ VERİ ÜZERİNDE TÜM ALGORİTMALARIN KIYASLANMASI ***")
+print(df_clean_summary.to_markdown(floatfmt=".4f"))
+
+# Tablo 2: K-Means (Ham vs. Temiz) Kıyaslaması
+df_comparison_km = pd.DataFrame({
+    'K-Means (Ham)': raw_kmeans_scores,
+    'K-Means (Temiz)': clean_scores['K-Means']
+}).T
+print("\n*** 2. TABLO: K-MEANS PERFORMANS KIYASLAMASI (HAM vs. TEMİZ VERİ) ***")
+print(df_comparison_km.to_markdown(floatfmt=".4f"))
+
+
+# Görsel Kıyaslama (Temiz Veri Üzerinde Tüm Algoritmalar)
+modeller_kume = algo_names
+skorlar_sil_values = df_clean_summary['Silhouette'].tolist()
+skorlar_db_values = df_clean_summary['Davies-Bouldin'].tolist()
+
 plt.figure(figsize=(14, 6))
+plt.suptitle('Temiz Veri Üzerinde Tüm Algoritmaların Kıyaslanması', fontsize=16)
+
+# Silhouette Skoru
 plt.subplot(1, 2, 1)
 sns.barplot(x=modeller_kume, y=skorlar_sil_values, palette='viridis')
-plt.title('Silhouette Skor Karþýlaþtýrmasý (Büyük olmasý daha iyi)')
+plt.title('Silhouette Skor Karşılaştırması (Yüksek Daha İyi)')
 plt.ylabel('Silhouette Skoru')
-plt.tight_layout()
 
-
-# 2. DAVIES-BOULDIN SKORU (Kucuk Daha iyi)
+# Davies-Bouldin Skoru
 plt.subplot(1, 2, 2)
 sns.barplot(x=modeller_kume, y=skorlar_db_values, palette='plasma')
-plt.title('Davies-Bouldin Skor Karþýlaþtýrmasý (Küçük olmasý daha iyi)')
+plt.title('Davies-Bouldin Skor Karşılaştırması (Düşük Daha İyi)')
 plt.ylabel('Davies-Bouldin Skoru')
-plt.savefig('Kumeleme_Iki_Metrik_Karsilastirma.png')
-plt.tight_layout()
-plt.show()
 
-print("\n*** TUM KUMELEME ALGORITMALARI KARSILASTIRILDI. ***")
-print(f"\nSilhouette Skorlarý: {skorlar_sil}")
-print(f"Davies-Bouldin Skorlarý: {skorlar_db} içermektedir.")
+plt.tight_layout(rect=[0, 0, 1, 0.9])
+plt.show()

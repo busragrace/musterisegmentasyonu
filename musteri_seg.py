@@ -12,6 +12,8 @@ from sklearn.cluster import estimate_bandwidth
 from scipy.cluster.hierarchy import linkage, dendrogram
 from mpl_toolkits.mplot3d import Axes3D
 
+from sklearn.preprocessing import LabelEncoder
+
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -356,6 +358,33 @@ plt.xlabel('Müşteriler (gruplandırılmış)', fontsize=12)
 plt.tight_layout()
 plt.show() 
 
+# ------------------------------------------------------------------
+# 4.2.1 HIYERARŞİK KÜMELEME: HAM (RAW) VERİ İÇİN DENDROGRAM
+# ------------------------------------------------------------------
+
+
+features_for_dendrogram = ["Annual Income (k$)","Spending Score (1-100)"]
+scaler_raw = StandardScaler()
+# df_raw, kodun ust kisminda tanimli olmasi gerekir.
+X_raw_cluster = pd.DataFrame(scaler_raw.fit_transform(df_raw[features_for_dendrogram]), columns=features_for_dendrogram)
+
+# 3. Baglanti Hesabi (Agglomerative/Ward)
+linked_raw = linkage(X_raw_cluster, method="ward")
+
+# 4. Dendrogram Cizimi
+plt.figure(figsize=(12, 7))
+dendrogram(linked_raw,
+           orientation='top',
+           show_leaf_counts=False,
+           # 5 kume icin esik degeri
+           color_threshold=linked_raw[-5, 2] 
+           )
+plt.title('Dendrogram: HAM VERI (Uc Degerlerin Etkisi)', fontsize=18, color='red')
+plt.ylabel('Mesafe (Distance)')
+plt.xlabel('Musteriler', fontsize=12)
+plt.show()
+print("\n--- Ham Veri Dendrogrami Tamamlandi. ---")
+
 ### 4.3. Küme Dağılım Grafikleri
 
 # K-Means Dağılım
@@ -381,6 +410,41 @@ sns.scatterplot(data=df_clean, x="Annual Income (k$)", y="Spending Score (1-100)
 plt.title(f"Affinity Propagation Dağılımı (K={len(df_clean['AP_Label'].unique())})", fontsize=18)
 plt.tight_layout()
 plt.show()
+
+features_2d = ["Annual Income (k$)","Spending Score (1-100)"]
+features_3d = ["Age","Annual Income (k$)","Spending Score (1-100)"]
+features_4d = ["Gender","Age","Annual Income (k$)","Spending Score (1-100)"]
+K = 5 # Sabit kume sayisi
+
+print("\n--- AGGLOMERATIVE CLUSTERING: Boyut Karsilastirmasi ---")
+
+for feats in [features_2d, features_3d, features_4d]:
+    # 1. Veri Hazirligi ve Olceklendirme
+    label_encoder = LabelEncoder()
+
+
+    df_clean['Gender'] = label_encoder.fit_transform(df_clean['Gender'])
+    scaler = StandardScaler() 
+    X = df_clean[feats]
+    X_scaled = scaler.fit_transform(X)
+
+    # 2. Modeli Egitme
+    hc = AgglomerativeClustering(n_clusters=K, metric='euclidean', linkage='ward')
+    y_hc = hc.fit_predict(X_scaled)
+
+    # 3. Metrik Hesaplama (Calinski Harabasz kaldirildi)
+    sil = silhouette_score(X_scaled, y_hc)
+    db = davies_bouldin_score(X_scaled, y_hc)
+    # ch KALDIRILDI
+
+    # 4. Sonuclari Yazdirma
+    print(f"\n Ozellik Seti : {feats}")
+    print(f"Silhouette Score: {sil:.4f}")
+    print(f"Davies Bouldin Score: {db:.4f}")
+    # Calinski Harabasz Score yazdirilmayacak
+    print("-------------")
+
+print("\n--- HC Boyut Karsilastirmasi Tamamlandi. ---")
 
 # 5. SKOR HESAPLAMA VE KIYASLAMA 
 

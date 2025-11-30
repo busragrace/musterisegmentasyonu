@@ -12,14 +12,14 @@ from sklearn.cluster import estimate_bandwidth
 from scipy.cluster.hierarchy import linkage, dendrogram
 from mpl_toolkits.mplot3d import Axes3D
 
-import warnings
+
 import warnings
 warnings.filterwarnings("ignore")
 
 df = pd.read_csv("Mall_Customers.csv")
 
-print("Veri Setinin Ýlk 5 Örneði: \n", df.head(5))
-print("Veri Setinin Þekli: \n", df.shape)
+print("Veri Setinin Ilk 5 Örnegi: \n", df.head(5))
+print("Veri Setinin Sekli: \n", df.shape)
 
 df.rename(columns={"Genre":"Gender"}, inplace=True)
 
@@ -146,13 +146,13 @@ var_list = df_scaled_fit[["Annual Income (k$)","Spending Score (1-100)"]]
 
 # Model Eðitimi
 ssd = []
-
 for num_clusters in range(1, 11):
-    kmeans = KMeans(n_clusters=num_clusters, max_iter=50)
+    
+    kmeans = KMeans(n_clusters=num_clusters, max_iter=50, random_state=42, n_init=10)
     kmeans.fit(var_list)
     ssd.append(kmeans.inertia_)
 
-# Elbow Curve
+
 plt.figure(figsize=(12,6))
 plt.plot(range(1,11), ssd, linewidth=2, color="red", marker="o")
 plt.title("Elbow Curve", fontsize=20, color="green")
@@ -162,8 +162,8 @@ plt.ylabel("SSD")
 plt.tight_layout()
 plt.show()
 
-# Final KMeans
-kmeans = KMeans(n_clusters=5, max_iter=50)
+# Final KMeans (Kritik Düzeltme: n_clusters=5 olarak sabitlendi)
+kmeans = KMeans(n_clusters=5, max_iter=50, random_state=42, n_init=10) 
 kmeans.fit(var_list)
 df["Label"] = kmeans.labels_
 df.head()
@@ -260,8 +260,28 @@ print("=========================================================================
 
 
 # ==================================================================
-# 1. VERİ YÜKLEME VE UÇ DEĞER DÜZELTMESİ
-# ==================================================================
+# 2. VERI YUKLEME VE ON ISLEME (EDA ONCESI TEMIZLIK)
+
+
+# Sutun isimlerini duzeltme
+print("--- Veri Yüklendi, Gender Düzeltildi, Aykýrý Deðerler Temizlendi ---")
+numeric_features = ['Age', 'Annual Income (k$)', 'Spending Score (1-100)']
+
+numeric_features = ['Age', 'Annual Income (k$)', 'Spending Score (1-100)']
+sns.pairplot(
+    data=df,
+    vars=numeric_features,
+    hue="Gender", 
+    diag_kind="kde",
+    palette={'Male':'#1f77b4', 'Female':'#ff7f0e'} 
+) 
+
+
+plt.suptitle("Yas - Gelir - Harcama Pairplot (Cinsiyete Gore Renkli)", y=1.02, fontsize=16)
+plt.tight_layout(rect=[0, 0.03, 1, 0.98]) # ASCII uyumlu metin kullanildi
+plt.show()
+
+
 df_raw = pd.read_csv(r"C:\Users\Lenovo\Desktop\Musteri_Segmentasyon\Mall_Customers.csv")
 df_raw.rename(columns={"Genre":"Gender"}, inplace=True)
 df_clean = df_raw.copy()
@@ -291,9 +311,8 @@ X_cluster = pd.DataFrame(X_clean_scaled, columns=features) # Temiz veri kümelem
 
 print("--- Veri Ölçeklendirme Tamamlandı. ---")
 
-# ==================================================================
 # 3. KÜMELEME MODELLERİNİ EĞİTME (Temiz Veri Üzerinden)
-# ==================================================================
+
 K = 5
 algorithms = {
     'K-Means': KMeans(n_clusters=K, random_state=42, n_init=10),
@@ -309,7 +328,7 @@ df_clean["AP_Label"] = algorithms['Affinity Prop.'].fit_predict(X_cluster)
 print("--- Tüm Kümeleme Modelleri Eğitildi. ---")
 
 # ==================================================================
-# 4. GÖRSELLEŞTİRMELER (HER BİRİ AYRI SAYFADA)
+# 4. GÖRSELLEŞTİRMELER 
 
 ### 4.1. Korelasyon Matrisi 
 df_encoded = pd.get_dummies(df_clean, columns=['Gender'], drop_first=True)

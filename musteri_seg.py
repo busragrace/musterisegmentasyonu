@@ -288,11 +288,10 @@ plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 plt.show()
 
 
-<<<<<<< HEAD
 df_raw = pd.read_csv("Mall_Customers.csv")
-=======
+
 df = pd.read_csv("Mall_Customers.csv")
->>>>>>> origin/main
+
 df_raw.rename(columns={"Genre":"Gender"}, inplace=True)
 df_clean = df_raw.copy()
 

@@ -284,7 +284,7 @@ plt.tight_layout(rect=[0, 0.03, 1, 0.98]) # ASCII uyumlu metin kullanildi
 plt.show()
 
 
-df_raw = pd.read_csv(r"C:\Users\Lenovo\Desktop\Musteri_Segmentasyon\Mall_Customers.csv")
+df = pd.read_csv("Mall_Customers.csv")
 df_raw.rename(columns={"Genre":"Gender"}, inplace=True)
 df_clean = df_raw.copy()
 

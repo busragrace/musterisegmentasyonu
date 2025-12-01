@@ -30,12 +30,16 @@ print(df.describe())
 print(df.isnull().sum())
 
 plt.figure(figsize=(10,6))
-plt.subplot(1,2,1)
-sns.boxplot(data=df, y="Annual Income (k$)")
-plt.subplot(1,2,2)
-sns.boxplot(data=df, y="Spending Score (1-100)")
+plt.title("Aykırı Değer Tespiti \n", fontsize=20, color="lightblue")
+plt.subplot(1,3,1)
+sns.boxplot(data=df, y="Age", color="lightcoral")
+plt.subplot(1,3,2)
+sns.boxplot(data=df, y="Annual Income (k$)", color="lightcoral")
+plt.subplot(1,3,3)
+sns.boxplot(data=df, y="Spending Score (1-100)", color="lightcoral")
 plt.tight_layout()
 plt.show()
+
 
 plt.figure(figsize=(10,6))
 sns.set_style('darkgrid')
@@ -45,6 +49,7 @@ plt.xlabel("Age Range", fontsize=15)
 plt.ylabel("Density", fontsize=15)
 plt.tight_layout()
 plt.show()
+
 
 plt.figure(figsize=(10,6))
 sns.set_style('darkgrid')
@@ -278,13 +283,16 @@ sns.pairplot(
     palette={'Male':'#1f77b4', 'Female':'#ff7f0e'} 
 ) 
 
-
-plt.suptitle("Yas - Gelir - Harcama Pairplot (Cinsiyete Gore Renkli)", y=1.02, fontsize=16)
-plt.tight_layout(rect=[0, 0.03, 1, 0.98]) # ASCII uyumlu metin kullanildi
+plt.suptitle("Yas - Gelir - Harcama Pairplot (Cinsiyete Gore Renkli)", y=1.03, fontsize=16)
+plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 plt.show()
 
 
+<<<<<<< HEAD
+df_raw = pd.read_csv("Mall_Customers.csv")
+=======
 df = pd.read_csv("Mall_Customers.csv")
+>>>>>>> origin/main
 df_raw.rename(columns={"Genre":"Gender"}, inplace=True)
 df_clean = df_raw.copy()
 
